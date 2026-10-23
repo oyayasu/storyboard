@@ -1,0 +1,104 @@
+name: Storyboard Studio Next - Windows 10 x64
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows10.yml'
+      - 'Storyboard-Studio-Next-v0.3.11-PRONTO-PARA-GITHUB.zip'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    name: Compilar instalador EXE (Windows x64)
+    runs-on: windows-2022
+    timeout-minutes: 90
+
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: source
+
+    steps:
+      - name: Baixar arquivos do repositorio
+        uses: actions/checkout@v4
+
+      - name: Extrair projeto completo do ZIP
+        working-directory: .
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archive = 'Storyboard-Studio-Next-v0.3.11-PRONTO-PARA-GITHUB.zip'
+          if (-not (Test-Path -LiteralPath $archive)) {
+            throw "ZIP nao encontrado: $archive"
+          }
+          New-Item -ItemType Directory -Path source -Force | Out-Null
+          Expand-Archive -LiteralPath $archive -DestinationPath source -Force
+          foreach ($required in @(
+            'source/src/index.html',
+            'source/src-tauri/Cargo.toml',
+            'source/src-tauri/tauri.conf.json',
+            'source/scripts/check_project.py',
+            'source/scripts/test_state.mjs'
+          )) {
+            if (-not (Test-Path -LiteralPath $required)) {
+              throw "Falta arquivo no ZIP: $required"
+            }
+          }
+
+      - name: Validar estrutura e versao
+        run: python scripts/check_project.py
+
+      - name: Verificar sintaxe JavaScript
+        run: |
+          Get-ChildItem -Path src -Filter '*.js' | ForEach-Object {
+            node --check $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "JavaScript invalido: $($_.Name)" }
+          }
+
+      - name: Testar projetos, salvamento e desfazer/refazer
+        run: node scripts/test_state.mjs
+
+      - name: Instalar Rust estavel para Windows x64
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache de dependencias Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source/src-tauri -> target
+
+      - name: Instalar Tauri CLI 2
+        run: cargo install tauri-cli --version '^2' --locked
+
+      - name: Compilar aplicativo e instalador NSIS
+        env:
+          CARGO_INCREMENTAL: '0'
+          CARGO_NET_RETRY: '5'
+        run: cargo tauri build --bundles nsis
+
+      - name: Verificar se o EXE foi gerado
+        run: |
+          $folder = 'src-tauri/target/release/bundle/nsis'
+          if (-not (Test-Path -LiteralPath $folder)) {
+            throw "Diretorio do instalador nao encontrado: $folder"
+          }
+          $setups = @(Get-ChildItem -Path $folder -Filter '*-setup.exe' -File)
+          if ($setups.Count -eq 0) { throw 'Nenhum instalador NSIS gerado' }
+          foreach ($setup in $setups) {
+            if ($setup.Length -lt 102400) {
+              throw "Arquivo suspeitamente pequeno: $($setup.Name)"
+            }
+            Write-Host "Instalador pronto: $($setup.Name)"
+          }
+
+      - name: Disponibilizar instalador em Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Storyboard-Studio-Next-v0.3.11-Windows10-x64
+          path: source/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 30
