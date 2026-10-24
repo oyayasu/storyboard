@@ -1,0 +1,39 @@
+name: Validate Storyboard Studio Next
+
+on:
+  push:
+    branches: [update/storyboard-ui-20261024]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check project structure, versions and assets
+        run: python scripts/check_project.py
+      - name: Check all app JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in src/*.js; do node --check "$f"; done
+      - name: Run storyboard state tests
+        run: node scripts/test_state.mjs
+      - name: Check user-provided chapter stickers and UI hooks
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          app=Path('src/app.js').read_text()
+          css=Path('src/styles.css').read_text()
+          for path in ('src/assets/chapter-ready.png','src/assets/chapter-revision.png'):
+              assert Path(path).is_file() and Path(path).stat().st_size > 300, path
+          for feature in ('tagTargetIds(', 'commitChapterRename(', 'toggleNotes(', 'chapter-status-ready', 'chapter-status-revision', 'scroll-fade-active'):
+              assert feature in app+css, feature
+          assert "position(p(),origin.id,store.state.settings.numbering)" in app
+          print('UI feature checks passed')
+          PY

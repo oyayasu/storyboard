@@ -1,0 +1,82 @@
+name: Storyboard Studio Next - macOS Apple Silicon
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, update/storyboard-ui-20261024]
+    paths:
+      - '.github/workflows/macos.yml'
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'scripts/**'
+      - 'Build macOS App.command'
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  macos-apple-silicon:
+    name: Build .dmg and .app - Apple Silicon
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_NET_RETRY: '5'
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate project and JavaScript syntax
+        run: |
+          set -euo pipefail
+          python3 scripts/check_project.py
+          for file in src/*.js; do node --check "$file"; done
+          node scripts/test_state.mjs
+
+      - name: Install Rust toolchain for Apple Silicon
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: storyboard-macos-arm64
+
+      - name: Generate native macOS icon
+        run: bash scripts/generate_macos_icon.sh
+
+      - name: Build signed macOS app and DMG for Apple Silicon
+        run: npx --yes @tauri-apps/cli@2 build --target aarch64-apple-darwin --bundles app,dmg
+
+      - name: Verify native app bundle and DMG, create zipped app
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="src-tauri/target/aarch64-apple-darwin/release/bundle"
+          app="$base/macos/Storyboard Studio Next.app"
+          test -d "$app"
+          bin="$app/Contents/MacOS/storyboard-studio"
+          if [[ ! -f "$bin" ]]; then
+            bin="$(find "$app/Contents/MacOS" -maxdepth 1 -type f -print -quit)"
+          fi
+          test -n "$bin" && test -f "$bin"
+          file "$bin"
+          file "$bin" | grep -q "arm64"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent "$app" dist/Storyboard-Studio-Next-v0.3.12-macOS-Apple-Silicon.app.zip
+          find "$base/dmg" -type f -name '*.dmg' -exec cp {} dist/ \;
+          test -n "$(find dist -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+          ls -lh dist/
+
+      - name: Upload installable macOS downloads
+        uses: actions/upload-artifact@v4
+        with:
+          name: Storyboard-Studio-Next-v0.3.12-macOS-Apple-Silicon
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30

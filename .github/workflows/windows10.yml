@@ -2,11 +2,16 @@ name: Storyboard Studio Next - Windows 10 x64
 
 on:
   workflow_dispatch:
-  push:
+  pull_request:
     branches: [main]
+  push:
+    branches: [main, update/storyboard-ui-20261024]
     paths:
       - '.github/workflows/windows10.yml'
       - 'Storyboard-Studio-Next-v0.3.11-PRONTO-PARA-GITHUB.zip'
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'scripts/**'
 
 permissions:
   contents: read
@@ -26,16 +31,19 @@ jobs:
       - name: Baixar arquivos do repositorio
         uses: actions/checkout@v4
 
-      - name: Extrair projeto completo do ZIP
+      - name: Preparar codigo atualizado
         working-directory: .
         run: |
           $ErrorActionPreference = 'Stop'
-          $archive = 'Storyboard-Studio-Next-v0.3.11-PRONTO-PARA-GITHUB.zip'
-          if (-not (Test-Path -LiteralPath $archive)) {
-            throw "ZIP nao encontrado: $archive"
-          }
           New-Item -ItemType Directory -Path source -Force | Out-Null
-          Expand-Archive -LiteralPath $archive -DestinationPath source -Force
+          if ((Test-Path -LiteralPath 'src/index.html') -and (Test-Path -LiteralPath 'src-tauri/Cargo.toml')) {
+            Copy-Item -Path 'src', 'src-tauri', 'scripts' -Destination 'source' -Recurse -Force
+            Copy-Item -Path 'README_WINDOWS10.md' -Destination 'source' -Force
+          } else {
+            $archive = 'Storyboard-Studio-Next-v0.3.11-PRONTO-PARA-GITHUB.zip'
+            if (-not (Test-Path -LiteralPath $archive)) { throw "Source and archive not found" }
+            Expand-Archive -LiteralPath $archive -DestinationPath source -Force
+          }
           foreach ($required in @(
             'source/src/index.html',
             'source/src-tauri/Cargo.toml',
@@ -44,7 +52,7 @@ jobs:
             'source/scripts/test_state.mjs'
           )) {
             if (-not (Test-Path -LiteralPath $required)) {
-              throw "Falta arquivo no ZIP: $required"
+              throw "Missing source: $required"
             }
           }
 
@@ -98,7 +106,7 @@ jobs:
       - name: Disponibilizar instalador em Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Storyboard-Studio-Next-v0.3.11-Windows10-x64
+          name: Storyboard-Studio-Next-v0.3.12-Windows10-x64
           path: source/src-tauri/target/release/bundle/nsis/*-setup.exe
           if-no-files-found: error
           retention-days: 30
