@@ -31,7 +31,7 @@ try:
     assert config['bundle']['windows']['nsis']['installMode'] == 'currentUser'
     assert config['bundle']['windows']['webviewInstallMode']['type'] == 'downloadBootstrapper'
     assert 'tauri = { version = "2"' in cargo
-    assert re.search(r'^version = "0\.3\.11"$', cargo, flags=re.M)
+    assert re.search(r'^version = "0\.3\.12"$', cargo, flags=re.M)
     assert (root / 'src-tauri/Cargo.lock').is_file()
     for f in ('src-tauri/src/main.rs', 'src-tauri/src/lib.rs', 'src-tauri/build.rs', 'src/db.js', 'src/importer.js', 'src/media.js', 'src/state.js', 'src/app.js'):
         assert (root / f).is_file(), f
