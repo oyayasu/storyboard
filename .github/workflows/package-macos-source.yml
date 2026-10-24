@@ -1,0 +1,40 @@
+name: Package Mac source for chat download
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [update/storyboard-ui-20261024]
+    paths:
+      - ".github/workflows/package-macos-source.yml"
+      - "Build macOS App.command"
+      - "src-tauri/tauri.macos.conf.json"
+permissions:
+  contents: read
+jobs:
+  package:
+    name: Prepare Mac source ZIP
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check source
+        run: |
+          python scripts/check_project.py
+          for file in src/*.js; do node --check "$file"; done
+          node scripts/test_state.mjs
+      - name: Package macOS build kit
+        run: |
+          set -euo pipefail
+          mkdir -p deliverable/Storyboard-Studio-Next-v0.3.12-Mac
+          cp -R src src-tauri scripts deliverable/Storyboard-Studio-Next-v0.3.12-Mac/
+          cp "Build macOS App.command" "Run Development.command" README.md deliverable/Storyboard-Studio-Next-v0.3.12-Mac/
+          chmod +x "deliverable/Storyboard-Studio-Next-v0.3.12-Mac/Build macOS App.command"
+          chmod +x "deliverable/Storyboard-Studio-Next-v0.3.12-Mac/scripts/generate_macos_icon.sh"
+          cd deliverable
+          zip -qr Storyboard-Studio-Next-v0.3.12-Mac-SOURCE.zip Storyboard-Studio-Next-v0.3.12-Mac
+          test -s Storyboard-Studio-Next-v0.3.12-Mac-SOURCE.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Storyboard-Studio-Next-v0.3.12-Mac-Source
+          path: deliverable/Storyboard-Studio-Next-v0.3.12-Mac-SOURCE.zip
+          retention-days: 7
+          if-no-files-found: error
