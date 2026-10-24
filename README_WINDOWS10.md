@@ -1,15 +1,15 @@
-# Storyboard Studio Next v0.3.11 — Windows 10 / 11 (64 bits)
+# Storyboard Studio Next v0.3.12 — Windows 10 / 11 (64 bits)
 
-Este é o código-fonte **completo** da versão 0.3.11, adaptado para o Windows 10 x64 e pronto para compilar pelo **GitHub Actions**. A base do aplicativo continua sendo **Tauri 2 + Rust e HTML/CSS/JavaScript**, sem npm, Electron ou serviços online em execução no app.
+Este é o código-fonte **completo** da versão 0.3.12, adaptado para o Windows 10 x64 e pronto para compilar pelo **GitHub Actions**. A base do aplicativo continua sendo **Tauri 2 + Rust e HTML/CSS/JavaScript**, sem npm, Electron ou serviços online em execução no app.
 
 ## Como obter o instalador .exe pelo GitHub
 
-1. **Extraia este ZIP no computador.** Dentro você verá `src/`, `src-tauri/`, `.github/workflows/windows10.yml` e `README_WINDOWS10.md`. Envie **esses arquivos e pastas**, não o ZIP fechado, para a raiz de um repositório GitHub. Preserve a pasta oculta `.github`.
+1. Acesse a branch atualizada ou o merge do pull request. As pastas `src/`, `src-tauri/` e `scripts/` já estão no repositório, sem necessidade de extrair o ZIP antigo.
 2. No GitHub, abra o repositório e clique em **Actions**.
 3. Escolha **Storyboard Studio Next - Windows 10 x64** na coluna esquerda.
-4. Clique em **Run workflow** e confirme. O build também inicia automaticamente ao enviar alterações à branch `main` ou `master`.
-5. Quando o job **Build NSIS installer (Windows 10/11 x64)** estiver com marca de sucesso, abra a execução e encontre **Artifacts**, no final da página.
-6. Baixe `Storyboard-Studio-Next-v0.3.11-Windows10-x64.zip`, extraia-o e execute o instalador `*-setup.exe` no Windows 10 (64 bits).
+4. Clique em **Run workflow** e confirme. O build também inicia automaticamente quando forem enviados arquivos do código-fonte para a branch `main`.
+5. Quando o job **Compilar instalador EXE (Windows x64)** estiver com marca de sucesso, abra a execução e encontre **Artifacts**, no final da página.
+6. Baixe `Storyboard-Studio-Next-v0.3.12-Windows10-x64.zip`, extraia-o e execute o instalador `*-setup.exe` no Windows 10 (64 bits).
 
 O GitHub fornece um executor **Windows Server 2022** para compilar o aplicativo Windows x64. Isso **não** obriga você a instalar o Windows Server: o resultado visa Windows 10/11 x64. A execução **precisa completar com sucesso** para que o .exe seja considerado gerado. Os arquivos em Artifacts ficam disponíveis por um período limitado, configurado aqui para 30 dias.
 
@@ -42,7 +42,7 @@ Não publique o código caso ele contenha dados privados: o repositório de dest
 
 **O ZIP de código-fonte não inclui projetos salvos.** Os projetos estão armazenados no computador em que você usou Storyboard Studio Next (metadados no armazenamento do WebView e mídias no IndexedDB). Na passagem do macOS para o Windows, **exporte os projetos como arquivos `.storyboardstudio` no Mac** e importe-os no novo aplicativo do Windows. Teste os arquivos exportados antes de apagar os originais.
 
-Os recursos de Storyboard Mode, Project Browser, chapters, imagens, notas, exportação PDF/PNG e o estado da versão 0.3.11 continuam no código. O Perform Mode permanece com as limitações pré-existentes do projeto; a exportação MP4 ainda depende de suporte do WebView e não é garantida. Por segurança, o installer não migra nem exclui seus dados antigos.
+Os recursos de Storyboard Mode, Project Browser, chapters, imagens, notas, exportação PDF/PNG e o estado da versão 0.3.12 continuam no código. O Perform Mode permanece com as limitações pré-existentes do projeto; a exportação MP4 ainda depende de suporte do WebView e não é garantida. Por segurança, o installer não migra nem exclui seus dados antigos.
 
 **Windows 10:** Tauri usa Microsoft Edge **WebView2** para executar o frontend. Se não estiver instalado, o instalador tenta baixá-lo (é necessária conexão com a internet para essa etapa). A configuração usa o instalador NSIS pequeno, não inclui o pacote offline de 127 MB. Consulte: https://v2.tauri.app/distribute/windows-installer/
 
