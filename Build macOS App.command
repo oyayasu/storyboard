@@ -14,8 +14,8 @@ if ! cargo tauri --version >/dev/null 2>&1; then
   echo "Tauri CLI 2 not found. Install it with: cargo install tauri-cli --version '^2' --locked"
   exit 1
 fi
-echo "Building Storyboard Studio Next v0.3.11 for macOS..."
-cargo tauri build --bundles app
+echo "Building Storyboard Studio Next v0.3.12 for macOS..."
+cargo tauri build --bundles app,dmg
 bundle="src-tauri/target/release/bundle/macos/Storyboard Studio Next.app"
 if [[ ! -d "$bundle" ]]; then
   echo "Build did not produce the expected macOS .app at: $bundle"
