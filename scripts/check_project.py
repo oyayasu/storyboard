@@ -24,7 +24,7 @@ try:
     app = (root / 'src/app.js').read_text(encoding='utf8')
     state = (root / 'src/state.js').read_text(encoding='utf8')
     readme = (root / 'README_WINDOWS10.md').read_text(encoding='utf8')
-    assert config['version'] == '0.3.11'
+    assert config['version'] == '0.3.12'
     assert config['productName'] == 'Storyboard Studio Next'
     assert config['build']['frontendDist'] == '../src'
     assert config['app']['withGlobalTauri'] is True
