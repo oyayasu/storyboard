@@ -1,0 +1,33 @@
+name: Prepare editable Storyboard source
+on:
+  push:
+    branches:
+      - update/storyboard-ui-20261024
+    paths:
+      - .github/workflows/prepare-editable-source.yml
+permissions:
+  contents: write
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Extract original v0.3.11 source for update
+        shell: bash
+        run: |
+          set -euxo pipefail
+          unzip -Z1 Storyboard-Studio-Next-v0.3.11-PRONTO-PARA-GITHUB.zip | head -100
+          mkdir extracted
+          unzip -q Storyboard-Studio-Next-v0.3.11-PRONTO-PARA-GITHUB.zip -d extracted
+          test -f extracted/src/index.html
+          test -f extracted/src-tauri/Cargo.toml
+          rsync -a --exclude=.github/ extracted/ ./
+          rm -rf extracted
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --stat
+          git commit -m "chore: unpack Storyboard Studio v0.3.11 for UI updates"
+          git push origin HEAD:update/storyboard-ui-20261024
