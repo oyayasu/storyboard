@@ -480,3 +480,7 @@ body.lasso-active,body.lasso-active *{cursor:crosshair!important;-webkit-user-se
 :where(.browser-panel,.chapter-list,.bucket-grid,.completion-chapter-list,.completion-content,.print-center,.print-options,.paper-list,.modal-body,.inline-card-note,.sticky-margin,.holding-sidebar,.history-list,.shortcut-grid)::-webkit-scrollbar{width:6px;height:6px;}
 :where(.browser-panel,.chapter-list,.bucket-grid,.completion-chapter-list,.completion-content,.print-center,.print-options,.paper-list,.modal-body,.inline-card-note,.sticky-margin,.holding-sidebar,.history-list,.shortcut-grid)::-webkit-scrollbar-thumb{background:transparent;border-radius:99px;transition:background .25s;}
 :where(.browser-panel,.chapter-list,.bucket-grid,.completion-chapter-list,.completion-content,.print-center,.print-options,.paper-list,.modal-body,.inline-card-note,.sticky-margin,.holding-sidebar,.history-list,.shortcut-grid).scroll-fade-active::-webkit-scrollbar-thumb{background:#b7a2ad;}
+
+/* Override the original browser-panel scrollbar color, including while idle. */
+.page-browser .browser-panel:not(.scroll-fade-active){scrollbar-color:transparent transparent!important;}
+.page-browser .browser-panel.scroll-fade-active{scrollbar-color:#b4bfde transparent!important;}
