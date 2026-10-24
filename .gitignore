@@ -1,0 +1,12 @@
+# Rust / Tauri build output
+/src-tauri/target/
+/target/
+# Local IDE, OS, logs, and transient files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.log
+*.tmp
+# Never remove src-tauri/Cargo.lock: it is required for repeatable builds.
