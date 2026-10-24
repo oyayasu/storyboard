@@ -38,6 +38,7 @@ jobs:
           New-Item -ItemType Directory -Path source -Force | Out-Null
           if ((Test-Path -LiteralPath 'src/index.html') -and (Test-Path -LiteralPath 'src-tauri/Cargo.toml')) {
             Copy-Item -Path 'src', 'src-tauri', 'scripts' -Destination 'source' -Recurse -Force
+            Copy-Item -Path 'README_WINDOWS10.md' -Destination 'source' -Force
           } else {
             $archive = 'Storyboard-Studio-Next-v0.3.11-PRONTO-PARA-GITHUB.zip'
             if (-not (Test-Path -LiteralPath $archive)) { throw "Source and archive not found" }
