@@ -1,0 +1,97 @@
+name: Storyboard Studio v0.3.15 - macOS Apple Silicon
+
+on:
+  push:
+    branches: ['build/macos-v0.3.15']
+    paths:
+      - '.github/workflows/macos-v0.3.15.yml'
+      - 'build-input/macos-v0.3.15/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-app:
+    runs-on: macos-14
+    timeout-minutes: 45
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_NET_RETRY: '5'
+      SOURCE_DIR: ${{ github.workspace }}/source/Storyboard-Studio-Next-v0.3.15-Mac
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore exact corrected source
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, pathlib, zipfile, io
+          parts=sorted(pathlib.Path('build-input/macos-v0.3.15').glob('source.part*.b64'))
+          assert len(parts)==3
+          raw=base64.b64decode(''.join(p.read_text() for p in parts),validate=True)
+          assert hashlib.sha256(raw).hexdigest()=='8aacb788430580f7e26b6280dc461fe460540667ef3b965b073aedf8cca2f8b0'
+          with zipfile.ZipFile(io.BytesIO(raw)) as z:
+              assert z.testzip() is None
+              z.extractall('source')
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run source checks
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: |
+          python3 scripts/check_project.py
+          for file in src/*.js; do node --check "$file"; done
+          node scripts/test_state.mjs
+          node scripts/test_ui_regressions.mjs
+          node scripts/test_update_behaviors.mjs
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source/Storyboard-Studio-Next-v0.3.15-Mac/src-tauri -> target
+      - name: Verify locked dependencies with Cargo
+        working-directory: ${{ env.SOURCE_DIR }}/src-tauri
+        run: cargo fetch --locked --target aarch64-apple-darwin
+      - name: Generate macOS icon
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: bash scripts/generate_macos_icon.sh
+      - name: Build native Apple Silicon app
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: npx --yes --package @tauri-apps/cli@2 tauri build --ci --target aarch64-apple-darwin --bundles app -- --locked
+      - name: Verify and package the compiled app
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: |
+          set -euo pipefail
+          app='src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Storyboard Studio Next.app'
+          test -d "$app"
+          /usr/bin/codesign --verify --deep --strict "$app"
+          executable=$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$app/Contents/Info.plist")
+          /usr/bin/file "$app/Contents/MacOS/$executable"
+          /usr/bin/lipo -verify_arch arm64 "$app/Contents/MacOS/$executable"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")" = '0.3.15'
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$app" "$GITHUB_WORKSPACE/dist/Storyboard-Studio-v0.3.15-Mac-Apple-Silicon.zip"
+          /usr/bin/shasum -a 256 "$GITHUB_WORKSPACE/dist/Storyboard-Studio-v0.3.15-Mac-Apple-Silicon.zip" > "$GITHUB_WORKSPACE/dist/SHA256SUMS.txt"
+      - name: Smoke-test native startup
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: |
+          set -euo pipefail
+          app='src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Storyboard Studio Next.app'
+          executable=$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$app/Contents/Info.plist")
+          "$app/Contents/MacOS/$executable" > "$GITHUB_WORKSPACE/dist/startup.log" 2>&1 &
+          app_pid=$!
+          sleep 6
+          if ! kill -0 "$app_pid" 2>/dev/null; then
+            cat "$GITHUB_WORKSPACE/dist/startup.log"
+            echo 'App exited during native startup smoke test.' >&2
+            exit 1
+          fi
+          kill "$app_pid"
+          wait "$app_pid" || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Storyboard-Studio-v0.3.15-Mac-Apple-Silicon
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
