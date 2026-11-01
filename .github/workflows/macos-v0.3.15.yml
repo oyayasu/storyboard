@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   macos-app:
-    runs-on: macos-15
+    runs-on: macos-latest
     timeout-minutes: 45
     env:
       CARGO_INCREMENTAL: '0'
