@@ -1,0 +1,169 @@
+name: Media workflow - Windows x64 installers
+on:
+  push:
+    branches: [codex/windows-media-apps-20261110]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tauri:
+    name: ${{ matrix.app }} Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: Storyboard Studio
+            folder: Storyboard-Studio-v0.12.0
+            binary: storyboard-studio-next.exe
+            artifact: Storyboard-Studio-0.12.0-Windows-x64
+          - app: Subtitler
+            folder: Subtitler-v0.8.1
+            binary: whisper-desk.exe
+            artifact: Subtitler-0.8.1-Windows-x64
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Extract verified source
+        run: |
+          $archive = 'windows-inputs/${{ matrix.folder }}-Source.zip'
+          $expected = (Get-Content windows-inputs/checksums.json | ConvertFrom-Json).PSObject.Properties[$archive.Split('/')[-1]].Value
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne $expected) { throw 'Source checksum mismatch' }
+          Expand-Archive $archive apps
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/${{ matrix.folder }}/src-tauri -> target
+          key: windows-${{ matrix.folder }}
+      - name: Source and JavaScript checks
+        working-directory: apps/${{ matrix.folder }}
+        run: |
+          python scripts/check_project.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $testDir = if ('${{ matrix.app }}' -eq 'Subtitler') { 'tests' } else { 'scripts' }
+          $tests = @(Get-ChildItem $testDir -Filter '*.test.mjs' | ForEach-Object FullName)
+          node --test @tests
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Native Windows filesystem tests
+        working-directory: apps/${{ matrix.folder }}
+        run: |
+          if ('${{ matrix.app }}' -eq 'Subtitler') {
+            python scripts/test_native_documents.py
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            python scripts/test_instance_lock.py
+          } else {
+            python scripts/test_native_files.py
+          }
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Install pinned Tauri CLI
+        run: npm install --global @tauri-apps/cli@2.12.4
+      - name: Compile native app and NSIS installer
+        working-directory: apps/${{ matrix.folder }}
+        env:
+          CARGO_INCREMENTAL: '0'
+          CARGO_NET_RETRY: '5'
+        run: |
+          cargo check --locked --target x86_64-pc-windows-msvc
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if ('${{ matrix.app }}' -eq 'Subtitler') {
+            tauri build --target x86_64-pc-windows-msvc --bundles nsis --config src-tauri/tauri.windows.conf.json
+          } else {
+            tauri build --target x86_64-pc-windows-msvc --bundles nsis
+          }
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Stage Windows download
+        run: |
+          New-Item -ItemType Directory -Force windows-output | Out-Null
+          $release = 'apps/${{ matrix.folder }}/src-tauri/target/x86_64-pc-windows-msvc/release'
+          Copy-Item "$release/bundle/nsis/*-setup.exe" windows-output
+          Copy-Item 'WINDOWS_README.md' windows-output
+          Get-ChildItem windows-output -Filter '*.exe' | ForEach-Object {
+            if ($_.Length -lt 102400) { throw 'Invalid installer size' }
+            $head = [System.IO.File]::ReadAllBytes($_.FullName)
+            if ($head[0] -ne 77 -or $head[1] -ne 90) { throw 'Missing Windows PE header' }
+          }
+          Get-ChildItem windows-output -File | Get-FileHash -Algorithm SHA256 | Format-Table -AutoSize | Out-File windows-output/SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: windows-output/
+          if-no-files-found: error
+          retention-days: 30
+  folderexporter:
+    name: FolderExporter Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Extract verified sources
+        run: |
+          $checksums = Get-Content windows-inputs/checksums.json | ConvertFrom-Json
+          foreach ($name in @('FolderExporter-v1.10.1','Storyboard-Studio-v0.12.0')) {
+            $file = "$name-Source.zip"
+            if ((Get-FileHash "windows-inputs/$file" -Algorithm SHA256).Hash.ToLower() -ne $checksums.PSObject.Properties[$file].Value) { throw 'Source checksum mismatch' }
+            Expand-Archive "windows-inputs/$file" apps
+          }
+      - name: Install rendering and packaging dependencies
+        run: python -m pip install 'psd-tools[composite]==1.26.0' 'clipparse==0.2.0' 'Pillow==12.3.0' 'pyinstaller>=6.10,<7'
+      - name: Run export, integration and Windows compatibility tests
+        working-directory: apps/FolderExporter-v1.10.1
+        run: |
+          foreach ($test in @('selftest.py','integration_test.py','media_catalog_test.py','studio_link_test.py','workflow_test.py','workflow10_test.py','windows_compat_test.py')) {
+            python $test
+            if ($LASTEXITCODE) { throw "Failed test: $test" }
+          }
+          python interop_test.py ../../windows-inputs/Storyboard-Studio-v0.12.0-Source.zip
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -c "from app import Application; a=Application(); a.update(); a.destroy()"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Package executable and resources
+        working-directory: apps/FolderExporter-v1.10.1
+        run: |
+          python -c "from PIL import Image; Image.open('folder.png').convert('RGBA').save('FolderExporter.ico',sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])"
+          python -m PyInstaller --noconfirm --clean --windowed --onedir --name FolderExporter --icon FolderExporter.ico --add-data 'folder.png;.' --add-data 'WORKFLOW_MANUAL.md;.' --collect-all psd_tools --collect-all clipparse app.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item ../../WINDOWS_README.md dist/FolderExporter
+          Compress-Archive dist/FolderExporter FolderExporter-1.10.1-Windows-x64-Portable.zip
+      - name: Build current-user installer
+        working-directory: apps/FolderExporter-v1.10.1
+        run: |
+          $compiler = 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe'
+          if (-not (Test-Path $compiler)) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          & $compiler ../../FolderExporter-Windows.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Stage Windows download
+        run: |
+          New-Item -ItemType Directory -Force windows-output | Out-Null
+          Copy-Item 'apps/FolderExporter-v1.10.1/FolderExporter-1.10.1-Windows-x64-Portable.zip' windows-output
+          Copy-Item 'apps/FolderExporter-v1.10.1/installer/*.exe' windows-output
+          Copy-Item WINDOWS_README.md windows-output
+          Get-ChildItem windows-output -File | Get-FileHash -Algorithm SHA256 | Format-Table -AutoSize | Out-File windows-output/SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FolderExporter-1.10.1-Windows-x64
+          path: windows-output/
+          if-no-files-found: error
+          retention-days: 30
