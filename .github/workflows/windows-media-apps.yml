@@ -21,9 +21,9 @@ jobs:
             binary: storyboard-studio-next.exe
             artifact: Storyboard-Studio-0.12.1-Windows-x64
           - app: Subtitler
-            folder: Subtitler-v0.8.1
+            folder: Subtitler-v0.8.2
             binary: whisper-desk.exe
-            artifact: Subtitler-0.8.1-Windows-x64
+            artifact: Subtitler-0.8.2-Windows-x64
     defaults:
       run:
         shell: pwsh
@@ -76,7 +76,7 @@ jobs:
           CARGO_INCREMENTAL: '0'
           CARGO_NET_RETRY: '5'
         run: |
-          cargo check --locked --target x86_64-pc-windows-msvc
+          cargo check --manifest-path src-tauri/Cargo.toml --locked --target x86_64-pc-windows-msvc
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           if ('${{ matrix.app }}' -eq 'Subtitler') {
             tauri build --target x86_64-pc-windows-msvc --bundles nsis --config src-tauri/tauri.windows.conf.json
