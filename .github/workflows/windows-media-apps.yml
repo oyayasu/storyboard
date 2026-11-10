@@ -95,7 +95,8 @@ jobs:
             $head = [System.IO.File]::ReadAllBytes($_.FullName)
             if ($head[0] -ne 77 -or $head[1] -ne 90) { throw 'Missing Windows PE header' }
           }
-          Get-ChildItem windows-output -File | Get-FileHash -Algorithm SHA256 | Format-Table -AutoSize | Out-File windows-output/SHA256.txt
+          $hashes = @(Get-ChildItem windows-output -File | Where-Object Name -ne 'SHA256.txt' | Get-FileHash -Algorithm SHA256)
+          $hashes | Format-Table -AutoSize | Out-File windows-output/SHA256.txt
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
@@ -162,7 +163,8 @@ jobs:
           Copy-Item 'apps/FolderExporter-v1.10.1/FolderExporter-1.10.1-Windows-x64-Portable.zip' windows-output
           Copy-Item 'apps/FolderExporter-v1.10.1/installer/*.exe' windows-output
           Copy-Item WINDOWS_README.md windows-output
-          Get-ChildItem windows-output -File | Get-FileHash -Algorithm SHA256 | Format-Table -AutoSize | Out-File windows-output/SHA256.txt
+          $hashes = @(Get-ChildItem windows-output -File | Where-Object Name -ne 'SHA256.txt' | Get-FileHash -Algorithm SHA256)
+          $hashes | Format-Table -AutoSize | Out-File windows-output/SHA256.txt
       - uses: actions/upload-artifact@v4
         with:
           name: FolderExporter-1.10.1-Windows-x64
