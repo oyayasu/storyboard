@@ -8,4 +8,6 @@ Subtitler retains its own document association and self-contained audio projects
 
 When moving a workflow from Mac, copy the complete main project folder including Studio Link, plus the editable .StoryboardStudio and .subtitler files. Choose/reconnect the project folder on Windows. Locate external recordings when needed, or recover them from a self-contained Subtitler project. Existing Resolve/Premiere projects may need their own media relinking after a computer/path change.
 
-Versions: Storyboard Studio Next 0.12.0; Subtitler 0.8.1; FolderExporter 1.10.1. FolderExporter's compatibility update respects Storyboard Studio's archive parent and committed recovery journals and queries Windows process handles safely. No speech models or personal projects are bundled.
+Versions: Storyboard Studio Next 0.12.1; Subtitler 0.8.1; FolderExporter 1.10.1. FolderExporter's compatibility update respects Storyboard Studio's archive parent and committed recovery journals and queries Windows process handles safely. No speech models or personal projects are bundled.
+
+Storyboard Studio 0.12.1 also normalizes the project root before checking ownership/containment on Windows, including short temp-folder names and canonical paths.

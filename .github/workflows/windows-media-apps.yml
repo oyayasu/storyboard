@@ -5,6 +5,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  PYTHONUTF8: '1'
 jobs:
   tauri:
     name: ${{ matrix.app }} Windows x64
@@ -15,9 +17,9 @@ jobs:
       matrix:
         include:
           - app: Storyboard Studio
-            folder: Storyboard-Studio-v0.12.0
+            folder: Storyboard-Studio-v0.12.1
             binary: storyboard-studio-next.exe
-            artifact: Storyboard-Studio-0.12.0-Windows-x64
+            artifact: Storyboard-Studio-0.12.1-Windows-x64
           - app: Subtitler
             folder: Subtitler-v0.8.1
             binary: whisper-desk.exe
@@ -118,7 +120,7 @@ jobs:
       - name: Extract verified sources
         run: |
           $checksums = Get-Content windows-inputs/checksums.json | ConvertFrom-Json
-          foreach ($name in @('FolderExporter-v1.10.1','Storyboard-Studio-v0.12.0')) {
+          foreach ($name in @('FolderExporter-v1.10.1','Storyboard-Studio-v0.12.1')) {
             $file = "$name-Source.zip"
             if ((Get-FileHash "windows-inputs/$file" -Algorithm SHA256).Hash.ToLower() -ne $checksums.PSObject.Properties[$file].Value) { throw 'Source checksum mismatch' }
             Expand-Archive "windows-inputs/$file" apps
@@ -132,7 +134,7 @@ jobs:
             python $test
             if ($LASTEXITCODE) { throw "Failed test: $test" }
           }
-          python interop_test.py ../../windows-inputs/Storyboard-Studio-v0.12.0-Source.zip
+          python interop_test.py ../../windows-inputs/Storyboard-Studio-v0.12.1-Source.zip
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python -c "from app import Application; a=Application(); a.update(); a.destroy()"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
